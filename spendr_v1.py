@@ -1,9 +1,9 @@
-# import gspread
-# from oauth2client.service_account import ServiceAccountCredentials
-# import discord
-# from discord.ext import commands
-# import os
-# import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import discord
+from discord.ext import commands
+import os
+import datetime
 
 
 
@@ -312,8 +312,6 @@
 #     print("hello")
 
 # client.run()
-
-import os
 
 a = {"a": os.environ["first"], "b": os.environ["second"]}
 print(a["b"])
