@@ -315,4 +315,4 @@ import datetime
 
 a = {"a": os.environ["first"], "b": os.environ["second"]}
 print(a["b"])
-print(type(a["b"])
+print(type(a["b"]))
