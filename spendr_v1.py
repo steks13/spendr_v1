@@ -13,15 +13,24 @@ print(discord.__version__)
 
 # static variables
 sheet_date_index = 1
-daily_spending_sheet_spending_index = 2
-daily_spending_sheet_balance_index = 3
+sheet_day_name_index = 2
+daily_spending_sheet_spending_index = 3
+daily_spending_sheet_balance_index = 4
+daily_spending_sheet_weekly_balance_index = 5
+daily_spending_sheet_last_weekly_balance_row_index = 10
+
 weekly_income_row_index = 2
-weekly_income_col_index = 5
+weekly_income_col_index = 7
 weekend_counter_row_index = 2
-weekend_counter_col_index = 7
+weekend_counter_col_index = 9
+
+
 MONDAY = 0
 SATURDAY = 5
 SUNDAY = 6
+
+weekday_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 discord_bot_private_key = os.environ["discord_priv_key"]
 secret_dict = {
   "type": os.environ["type"],
@@ -73,7 +82,9 @@ def get_nb_rows(spreadsheet):
 def fill_in_date_in_row(spreadsheet, row, date):
     # fill in the date (type: date) in the row of spreadsheet
     date_string = get_edited_date_string_with_date(date)
+    weekday_string = weekday_list[get_weekday_with_date(date)]
     spreadsheet.update_cell(row, sheet_date_index, date_string)
+    spreadsheet.update_cell(row, sheet_day_name_index, weekday_string)
 
 
 def fill_in_daily_spending_in_row(row, spending_amount):
@@ -104,6 +115,9 @@ def fill_in_weekly_row(row, date, balance):
 def get_date_from_spreadsheet_row(spreadsheet, row):
     date_string = spreadsheet.cell(row, sheet_date_index).value
     return get_date_with_edited_string(date_string)
+
+def fill_in_initial_weekly_balance(row):
+    daily_spending_sheet.update_cell(row, daily_spending_sheet_weekly_balance_index, 0)
 
 
 def get_last_row_date(spreadsheet):
@@ -214,6 +228,7 @@ def get_weekend_counter():
 
 def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
     initial_spending = 0
+
     if weekend_counter == "no":
         if get_weekday_with_date(date) == SATURDAY or get_weekday_with_date(date) == SUNDAY:
             daily_initial_balance = 0
@@ -221,9 +236,16 @@ def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
         else:
             daily_initial_balance = round(weekly_income / 5, 2)
             fill_in_daily_row(row, date, initial_spending, daily_initial_balance)
+            add_to_last_weekly_balance(daily_initial_balance)
     else:
         daily_initial_balance = round(weekly_income / 7, 2)
+        add_to_last_weekly_balance(daily_initial_balance)
         fill_in_daily_row(row, date, initial_spending, daily_initial_balance)
+
+    if get_weekday_with_date(date) == MONDAY:
+        fill_in_initial_weekly_balance(row)
+        update_last_weekly_balance_row_index(row)
+
 
 
 def fill_in_daily_gap(date):
@@ -267,11 +289,43 @@ def subtract_from_last_daily_balance(amount_to_subtract):
     update_last_daily_balance(new_balance)
 
 
+def update_last_weekly_balance_row_index(new_index):
+    daily_spending_sheet.update_cell(2, daily_spending_sheet_last_weekly_balance_row_index, new_index)
+
+
+def get_last_weekly_balance_row():
+    return int(daily_spending_sheet.cell(2, daily_spending_sheet_last_weekly_balance_row_index).value)
+
+
+def update_last_weekly_balance(new_balance):
+    last_weekly_balance_row = get_last_weekly_balance_row()
+    daily_spending_sheet.update_cell(last_weekly_balance_row, daily_spending_sheet_weekly_balance_index, new_balance)
+
+
+def get_last_weekly_balance():
+    last_weekly_balance_row = get_last_weekly_balance_row()
+    return daily_spending_sheet.cell(last_weekly_balance_row, daily_spending_sheet_weekly_balance_index).value
+
+
+def add_to_last_weekly_balance(amount_to_add):
+    last_weekly_balance_amout = convert_gspread_string_to_float(get_last_weekly_balance())
+    new_last_weekly_balance_amout = last_weekly_balance_amout + amount_to_add
+    update_last_weekly_balance(new_last_weekly_balance_amout)
+
+
+def subtract_from_last_weekly_balance(amount_to_subtract):
+    last_weekly_balance_amout = convert_gspread_string_to_float(get_last_weekly_balance())
+    new_last_weekly_balance_amout = last_weekly_balance_amout - amount_to_subtract
+    update_last_weekly_balance(new_last_weekly_balance_amout)
+
+
+
 def daily_spend(amount):
     date = get_todays_date()
     fill_in_daily_gap(date)
     add_to_last_daily_spending(amount)
     subtract_from_last_daily_balance(amount)
+    subtract_from_last_weekly_balance(amount)
 
 
 # ____________________________________________________________________________________________________________________
@@ -306,21 +360,20 @@ def is_valid_score_input(text_message):
             return True
 
 
-
 @client.command()
 async def spend(ctx):
     recieved_message = ctx.message.content
     print(recieved_message)
     if is_valid_score_input(recieved_message):
+        await ctx.send("updating...")
+        # try:
         amount = float(recieved_message.split()[1])
         daily_spend(amount)
-        print("hello")
+        await ctx.send("updated")
+        # except:
+        #     await ctx.send("Something went wrong.")
     else:
-        None
+        await ctx.send("Not a valid argument for !spend.")
 
-
-@client.command()
-async def y(ctx):
-    print("hello")
 
 client.run(discord_bot_private_key)
