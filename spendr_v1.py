@@ -67,8 +67,7 @@ def refresh_daily_credentials():
     scope = ['https://spreadsheets.google.com/feeds',
              'https://www.googleapis.com/auth/drive']
     # creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict({
-        }, scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(secret_dict, scope)
     client_gspread = gspread.authorize(creds)
     daily_spending_sheet = client_gspread.open("daily_spending").sheet1
     print("Refreshed credentials for daily balance.")
@@ -367,6 +366,7 @@ async def spend(ctx):
     if is_valid_score_input(recieved_message):
         await ctx.send("updating...")
         # try:
+        refresh_daily_credentials()
         amount = float(recieved_message.split()[1])
         daily_spend(amount)
         await ctx.send("updated")
