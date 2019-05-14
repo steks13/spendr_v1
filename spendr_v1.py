@@ -227,6 +227,11 @@ def get_weekend_counter():
 
 def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
     initial_spending = 0
+    
+    
+    if get_weekday_with_date(date) == MONDAY:
+        fill_in_initial_weekly_balance(row)
+        update_last_weekly_balance_row_index(row)
 
     if weekend_counter == "no":
         if get_weekday_with_date(date) == SATURDAY or get_weekday_with_date(date) == SUNDAY:
@@ -241,9 +246,6 @@ def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
         add_to_last_weekly_balance(daily_initial_balance)
         fill_in_daily_row(row, date, initial_spending, daily_initial_balance)
 
-    if get_weekday_with_date(date) == MONDAY:
-        fill_in_initial_weekly_balance(row)
-        update_last_weekly_balance_row_index(row)
 
 
 
