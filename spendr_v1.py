@@ -390,7 +390,7 @@ async def weekly(ctx):
     try:
         refresh_daily_credentials()
         weekly_balance = get_last_weekly_balance()
-        await ctx.send("Weekly balance: {}".format(weekly_balance))
+        await ctx.send("Weekly balance: €{}".format(weekly_balance))
     except:
         await ctx.send("Something went wrong.")
 
@@ -400,7 +400,7 @@ async def total(ctx):
     try:
         refresh_daily_credentials()
         total_balance = get_total_balace()
-        await ctx.send("Total balance: {}".format(total_balance))
+        await ctx.send("Total balance: €{}".format(total_balance))
     except:
         await ctx.send("Something went wrong.")
 
