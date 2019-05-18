@@ -19,6 +19,10 @@ daily_spending_sheet_balance_index = 4
 daily_spending_sheet_weekly_balance_index = 5
 daily_spending_sheet_last_weekly_balance_row_index = 10
 
+
+total_balance_row_index = 2
+total_balance_column_index = 8
+
 weekly_income_row_index = 2
 weekly_income_col_index = 7
 weekend_counter_row_index = 2
@@ -320,7 +324,10 @@ def subtract_from_last_weekly_balance(amount_to_subtract):
     update_last_weekly_balance(new_last_weekly_balance_amout)
 
 
+def get_total_balace():
+    return daily_spending_sheet.cell(total_balance_row_index, total_balance_column_index).value
 
+  
 def daily_spend(amount):
     date = get_todays_date()
     fill_in_daily_gap(date)
@@ -376,6 +383,26 @@ async def spend(ctx):
         #     await ctx.send("Something went wrong.")
     else:
         await ctx.send("Not a valid argument for !spend.")
+        
+
+@client.command()
+async def weekly(ctx):
+    try:
+        refresh_daily_credentials()
+        weekly_balance = get_last_weekly_balance()
+        await ctx.send("Weekly balance: {}".format(weekly_balance))
+    except:
+        await ctx.send("Something went wrong.")
+
+
+@client.command()
+async def total(ctx):
+    try:
+        refresh_daily_credentials()
+        total_balance = get_total_balace()
+        await ctx.send("Total balance: {}".format(total_balance))
+    except:
+        await ctx.send("Something went wrong.")
 
 
 client.run(discord_bot_private_key)
