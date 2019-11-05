@@ -132,7 +132,9 @@ def get_last_row_date(spreadsheet):
 
 
 def convert_gspread_string_to_float(string):
+    print("input string: ", string)
     new_string = string.replace(',', '.')
+    print("new string: ", new_string)
     return float(new_string)
 # ______________________________________________________________________________________________________________________
 #                                                   Dates
