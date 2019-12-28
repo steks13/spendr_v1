@@ -4,12 +4,10 @@ import discord
 from discord.ext import commands
 import os
 import datetime
+import asyncio
 
 
-
-# get discord version should be version 0.0.2
 print(discord.__version__)
-
 
 # static variables
 sheet_date_index = 1
@@ -17,38 +15,38 @@ sheet_day_name_index = 2
 daily_spending_sheet_spending_index = 3
 daily_spending_sheet_balance_index = 4
 daily_spending_sheet_weekly_balance_index = 5
-daily_spending_sheet_last_weekly_balance_row_index = 10
-
+daily_spending_sheet_last_weekly_balance_row_index = 11
 
 total_balance_row_index = 2
 total_balance_column_index = 8
 
 weekly_income_row_index = 2
-weekly_income_col_index = 7
+weekly_income_col_index = 8
 weekend_counter_row_index = 2
-weekend_counter_col_index = 9
-
+weekend_counter_col_index = 10
 
 MONDAY = 0
 SATURDAY = 5
 SUNDAY = 6
 
+weekly_savings_column_index = 6
+savings_multiplier_column_index = 12
+
 weekday_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-discord_bot_private_key = os.environ["discord_priv_key"]
-secret_dict = {
-  "type": os.environ["type"],
-  "project_id": os.environ["project_id"],
-  "private_key_id": os.environ["private_key_id"],
-  "private_key": os.environ["private_key"],
-  "client_email": os.environ["client_email"],
-  "client_id": os.environ["client_id"],
-  "auth_uri": os.environ["auth_uri"],
-  "token_uri": os.environ["token_uri"],
-  "auth_provider_x509_cert_url": os.environ["auth_provider_x509_cert_url"],
-  "client_x509_cert_url": os.environ["client_x509_cert_url"]
-}
-
+ discord_bot_private_key = os.environ["discord_priv_key"]
+ secret_dict = {
+     "type": os.environ["type"],
+     "project_id": os.environ["project_id"],
+     "private_key_id": os.environ["private_key_id"],
+     "private_key": os.environ["private_key"],
+     "client_email": os.environ["client_email"],
+     "client_id": os.environ["client_id"],
+     "auth_uri": os.environ["auth_uri"],
+     "token_uri": os.environ["token_uri"],
+     "auth_provider_x509_cert_url": os.environ["auth_provider_x509_cert_url"],
+     "client_x509_cert_url": os.environ["client_x509_cert_url"]
+ }
 
 # set up google spreadsheet
 scope = ['https://spreadsheets.google.com/feeds',
@@ -58,75 +56,53 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(secret_dict, scope)
 
 client_gspread = gspread.authorize(creds)
 daily_spending_sheet = client_gspread.open("daily_spending").sheet1
+dailly_spending_to_update = client_gspread.open("daily_spending")
 
 
 # ______________________________________________________________________________________________________________________
 #                                                   Spreadsheets
 # ______________________________________________________________________________________________________________________
-def refresh_daily_credentials():
-    # this function refreshes the credentials to be able to edit the spreadsheet
-    global scope, creds, client_gspread
-    global daily_spending_sheet
-    print("Refreshing credentials ...")
-    scope = ['https://spreadsheets.google.com/feeds',
-             'https://www.googleapis.com/auth/drive']
-    # creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(secret_dict, scope)
-    client_gspread = gspread.authorize(creds)
-    daily_spending_sheet = client_gspread.open("daily_spending").sheet1
-    print("Refreshed credentials for daily balance.")
+def refresh_google_tokens():
+    if creds.access_token_expired:
+        print("tokens expired")
+        print("Refreshing credentials ...")
+        client_gspread.login()
+        print("Refreshed credentials.")
 
 
-def get_nb_rows(spreadsheet):
+def get_all_raw_data():
+    return daily_spending_sheet.get_all_values()
+
+
+def get_nb_rows(all_raw_data):
     # return the number of filled in rows in integer type
-    return len(spreadsheet.col_values(1))
-
-
-def fill_in_date_in_row(spreadsheet, row, date):
-    # fill in the date (type: date) in the row of spreadsheet
-    date_string = get_edited_date_string_with_date(date)
-    weekday_string = weekday_list[get_weekday_with_date(date)]
-    spreadsheet.update_cell(row, sheet_date_index, date_string)
-    spreadsheet.update_cell(row, sheet_day_name_index, weekday_string)
-
-
-def fill_in_daily_spending_in_row(row, spending_amount):
-    # fill in the spending amount (type: int) in the row of daily_spending spreadsheet
-    daily_spending_sheet.update_cell(row, daily_spending_sheet_spending_index, spending_amount)
-
-
-def fill_in_daily_balance_in_row(row, balance):
-    # fill in the balance (type: int) in the row of daily_spending spreadsheet
-    daily_spending_sheet.update_cell(row, daily_spending_sheet_balance_index, balance)
+    return len(all_raw_data)
 
 
 def fill_in_daily_row(row, date, spending_amount, balance):
-    fill_in_date_in_row(daily_spending_sheet, row, date)
-    fill_in_daily_spending_in_row(row, spending_amount)
-    fill_in_daily_balance_in_row(row, balance)
+    date_string = get_edited_date_string_with_date(date)
+    weekday_string = weekday_list[get_weekday_with_date(date)]
+    row_to_fill_in_list = [[date_string, weekday_string, spending_amount, balance]]
+    print(row_to_fill_in_list)
+    dailly_spending_to_update.values_update('Blad1!A{}'.format(row),
+                                            params={'valueInputOption': 'RAW'},
+                                            body={'values': row_to_fill_in_list}
+                                            )
 
 
-def fill_in_weekly_balance_in_row(row, balance):
-    weekly_balance_sheet.update_cell(row, daily_spending_sheet_balance_index, balance)
-
-
-def fill_in_weekly_row(row, date, balance):
-    fill_in_date_in_row(weekly_balance_sheet, row, date)
-    fill_in_weekly_balance_in_row(row, balance)
-
-
-def get_date_from_spreadsheet_row(spreadsheet, row):
-    date_string = spreadsheet.cell(row, sheet_date_index).value
+def get_date_from_spreadsheet_row(all_raw_data, row):
+    date_string = all_raw_data[row - 1][sheet_date_index - 1]
     return get_date_with_edited_string(date_string)
+
 
 def fill_in_initial_weekly_balance(row):
     daily_spending_sheet.update_cell(row, daily_spending_sheet_weekly_balance_index, 0)
 
 
-def get_last_row_date(spreadsheet):
-    nb_rows = get_nb_rows(spreadsheet)
+def get_last_row_date(all_raw_data):
+    nb_rows = get_nb_rows(all_raw_data)
     if nb_rows > 1:
-        return get_date_from_spreadsheet_row(spreadsheet, nb_rows)
+        return get_date_from_spreadsheet_row(all_raw_data, nb_rows)
     else:
         return None
 
@@ -136,9 +112,11 @@ def convert_gspread_string_to_float(string):
     new_string = string.replace(',', '.')
     print("new string: ", new_string)
     return float(new_string)
-# ______________________________________________________________________________________________________________________
-#                                                   Dates
-# ______________________________________________________________________________________________________________________
+
+
+# #####################################
+# ##########    Dates   ###############
+# #####################################
 def get_todays_date():
     # return todays date in date type
     return datetime.date.today()
@@ -187,17 +165,6 @@ def get_date_string_with_splitted_date(splitted_date):
             return "{}-{}-{}".format(day, month, year)
 
 
-def get_weekday_with_string(date_string):
-    # input a string of the form dd-mm-yyyy
-    # output an integer where 0 is monday, 1 is tuesday ...
-    splitted_date = split_date_with_edited_date_string(date_string)
-    year = splitted_date[0]
-    month = splitted_date[1]
-    day = splitted_date[2]
-    date = datetime.date(year, month, day)
-    return date.weekday()
-
-
 def get_weekday_with_date(date):
     return date.weekday()
 
@@ -218,23 +185,29 @@ def get_date_with_edited_string(date_string):
 
 def get_next_date(date):
     return date + datetime.timedelta(days=1)
+
+
+def get_hour_and_minute() -> list:
+    # return a list of current hour and minute
+    hour = datetime.datetime.now().hour
+    minute = datetime.datetime.now().minute
+    return [hour, minute]
 # ______________________________________________________________________________________________________________________
 #                                                   Helper Functions
 # ______________________________________________________________________________________________________________________
-def get_weekly_income():
+def get_weekly_income(all_raw_data):
     # return weekly income (type: int)
-    return convert_gspread_string_to_float(daily_spending_sheet.cell(weekly_income_row_index, weekly_income_col_index).value)
+    return convert_gspread_string_to_float(all_raw_data[weekly_income_row_index - 1][weekly_income_col_index - 1])
 
 
-def get_weekend_counter():
+def get_weekend_counter(all_raw_data):
     # return weekly income (type: int)
-    return str(daily_spending_sheet.cell(weekend_counter_row_index, weekend_counter_col_index).value)
+    return str(all_raw_data[weekend_counter_row_index - 1][weekend_counter_col_index - 1])
 
 
 def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
     initial_spending = 0
-    
-    
+
     if get_weekday_with_date(date) == MONDAY:
         fill_in_initial_weekly_balance(row)
         update_last_weekly_balance_row_index(row)
@@ -253,14 +226,12 @@ def fill_in_initial_daily_row(row, date, weekend_counter, weekly_income):
         fill_in_daily_row(row, date, initial_spending, daily_initial_balance)
 
 
-
-
-def fill_in_daily_gap(date):
-    nb_rows = get_nb_rows(daily_spending_sheet)
-    last_date = get_last_row_date(daily_spending_sheet)
+def fill_in_daily_gap(all_raw_data, date):
+    nb_rows = get_nb_rows(all_raw_data)
+    last_date = get_last_row_date(all_raw_data)
     current_date = last_date
-    weekly_income = get_weekly_income()
-    weekend_counter = get_weekend_counter().lower()
+    weekly_income = get_weekly_income(all_raw_data)
+    weekend_counter = get_weekend_counter(all_raw_data).lower()
     while current_date != date:
         current_date = get_next_date(current_date)
         nb_rows += 1
@@ -268,32 +239,22 @@ def fill_in_daily_gap(date):
 
 
 # new code from ipad
-def update_last_daily_spending(new_spending):
-    last_row_index = get_nb_rows(daily_spending_sheet)
-    daily_spending_sheet.update_cell(last_row_index, daily_spending_sheet_spending_index, new_spending)
+def update_values_last_daily_row(all_raw_data, amount):
+    last_row_index = get_nb_rows(all_raw_data)
+    last_row = all_raw_data[last_row_index - 1]
 
+    last_daily_spending = convert_gspread_string_to_float(last_row[daily_spending_sheet_spending_index - 1])
+    last_daily_balance = convert_gspread_string_to_float(last_row[daily_spending_sheet_balance_index - 1])
 
-def update_last_daily_balance(new_balance):
-    last_row_index = get_nb_rows(daily_spending_sheet)
-    daily_spending_sheet.update_cell(last_row_index, daily_spending_sheet_balance_index, new_balance)
+    new_daily_spending = last_daily_spending + amount
+    new_daily_balance = last_daily_balance - amount
 
+    updated_values_list = [[new_daily_spending, new_daily_balance]]
 
-def add_to_last_daily_spending(amount_to_add):
-    last_row_index = get_nb_rows(daily_spending_sheet)
-    old_spending = convert_gspread_string_to_float(
-        daily_spending_sheet.cell(last_row_index, daily_spending_sheet_spending_index).value)
-    new_spending = old_spending + amount_to_add
-    print("new spending:", new_spending)
-    update_last_daily_spending(new_spending)
-
-
-def subtract_from_last_daily_balance(amount_to_subtract):
-    last_row_index = get_nb_rows(daily_spending_sheet)
-    old_balance = convert_gspread_string_to_float(
-        daily_spending_sheet.cell(last_row_index, daily_spending_sheet_balance_index).value)
-    new_balance = old_balance - amount_to_subtract
-    print("new balance:", new_balance)
-    update_last_daily_balance(new_balance)
+    dailly_spending_to_update.values_update('Blad1!C{}'.format(last_row_index),
+                                            params={'valueInputOption': 'RAW'},
+                                            body={'values': updated_values_list}
+                                            )
 
 
 def update_last_weekly_balance_row_index(new_index):
@@ -326,18 +287,55 @@ def subtract_from_last_weekly_balance(amount_to_subtract):
     update_last_weekly_balance(new_last_weekly_balance_amout)
 
 
-def get_total_balace():
+def get_total_balance():
     return daily_spending_sheet.cell(total_balance_row_index, total_balance_column_index).value
 
-  
+
 def daily_spend(amount):
     date = get_todays_date()
-    fill_in_daily_gap(date)
-    add_to_last_daily_spending(amount)
-    subtract_from_last_daily_balance(amount)
+    all_raw_data = get_all_raw_data()
+    fill_in_daily_gap(all_raw_data, date)
+    all_raw_data = get_all_raw_data()
+    update_values_last_daily_row(all_raw_data, amount)
     subtract_from_last_weekly_balance(amount)
 
 
+def get_savings_multiplier():
+    return daily_spending_sheet.cell(2, savings_multiplier_column_index).value
+
+
+def calculate_amount_saved():
+    last_weekly_balance = convert_gspread_string_to_float(get_last_weekly_balance())
+    savings_multiplier = convert_gspread_string_to_float(get_savings_multiplier())
+    return last_weekly_balance * savings_multiplier
+
+
+def update_last_savings_cell():
+    last_weekly_balance_row = get_last_weekly_balance_row()
+    amount_saved = calculate_amount_saved()
+    if amount_saved < 0:
+        amount_saved = 0
+    daily_spending_sheet.update_cell(last_weekly_balance_row, weekly_savings_column_index, amount_saved)
+    return amount_saved
+
+
+def update_weekly_balance(all_raw_data):
+    last_weekly_balance_row = get_last_weekly_balance_row()
+    counter = -1
+    result = 0
+    while counter < 6 and (last_weekly_balance_row + counter) < len(all_raw_data):
+        daily_balance_string = all_raw_data[last_weekly_balance_row + counter][daily_spending_sheet_balance_index - 1]
+        daily_balance = convert_gspread_string_to_float(daily_balance_string)
+        result += daily_balance
+        counter += 1
+
+    daily_spending_sheet.update_cell(last_weekly_balance_row, daily_spending_sheet_weekly_balance_index, result)
+
+
+def automatic_daily_row_fill_in():
+    date = get_todays_date()
+    all_raw_data = get_all_raw_data()
+    fill_in_daily_gap(all_raw_data, date)
 # ____________________________________________________________________________________________________________________
 #                                                   Discord
 # ____________________________________________________________________________________________________________________
@@ -349,6 +347,7 @@ client = commands.Bot(command_prefix="!")  # Initialise client bot
 @client.event
 async def on_ready():
     print("Bot is online and connected to Discord")
+
 
 def is_convertible_to_float(string):
     try:
@@ -377,7 +376,7 @@ async def spend(ctx):
     if is_valid_score_input(recieved_message):
         await ctx.send("updating...")
         # try:
-        refresh_daily_credentials()
+        refresh_google_tokens()
         amount = float(recieved_message.split()[1])
         daily_spend(amount)
         await ctx.send("updated")
@@ -385,12 +384,12 @@ async def spend(ctx):
         #     await ctx.send("Something went wrong.")
     else:
         await ctx.send("Not a valid argument for !spend.")
-        
+
 
 @client.command()
 async def weekly(ctx):
     try:
-        refresh_daily_credentials()
+        refresh_google_tokens()
         weekly_balance = get_last_weekly_balance()
         await ctx.send("Weekly balance: €{}".format(weekly_balance))
     except:
@@ -400,11 +399,46 @@ async def weekly(ctx):
 @client.command()
 async def total(ctx):
     try:
-        refresh_daily_credentials()
-        total_balance = get_total_balace()
+        refresh_google_tokens()
+        total_balance = get_total_balance()
         await ctx.send("Total balance: €{}".format(total_balance))
     except:
         await ctx.send("Something went wrong.")
 
 
+@client.command()
+async def save(ctx):
+    amount_saved = update_last_savings_cell()
+    await ctx.send("Amount saved this week: `€ {}`".format(amount_saved))
+
+
+@client.command()
+async def update(ctx):
+    all_raw_data = get_all_raw_data()
+    update_weekly_balance(all_raw_data)
+    await ctx.send("Done")
+
+
+async def auto_day_fill_in():
+    print("Starting loop")
+    await client.wait_until_ready()
+
+
+    while True:
+        now = get_hour_and_minute()
+        hour = now[0]
+        minute = now[1]
+        print(hour)
+        if hour == 10 and minute == 47:
+            print("Auto filling in day.")
+            automatic_daily_row_fill_in()
+            print("going to sleep")
+            await asyncio.sleep(20 * 60 * 60)  # sleeps 20 hours
+
+        else:
+            print("sleep for 56 secs...")
+            await asyncio.sleep(56)
+
+
+client.loop.create_task(auto_day_fill_in())
 client.run(discord_bot_private_key)
