@@ -438,6 +438,11 @@ async def auto_day_fill_in():
         else:
             print("sleep for 56 secs...")
             await asyncio.sleep(56)
+          
+
+@client.command()
+async def ping(ctx):
+    await ctx.send("pong!")
 
 
 client.loop.create_task(auto_day_fill_in())
