@@ -34,8 +34,8 @@ savings_multiplier_column_index = 12
 
 weekday_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
- discord_bot_private_key = os.environ["discord_priv_key"]
- secret_dict = {
+discord_bot_private_key = os.environ["discord_priv_key"]
+secret_dict = {
      "type": os.environ["type"],
      "project_id": os.environ["project_id"],
      "private_key_id": os.environ["private_key_id"],
@@ -46,7 +46,7 @@ weekday_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturda
      "token_uri": os.environ["token_uri"],
      "auth_provider_x509_cert_url": os.environ["auth_provider_x509_cert_url"],
      "client_x509_cert_url": os.environ["client_x509_cert_url"]
- }
+}
 
 # set up google spreadsheet
 scope = ['https://spreadsheets.google.com/feeds',
